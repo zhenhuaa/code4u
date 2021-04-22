@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import 'codemirror/mode/javascript/javascript'
 import 'codemirror/lib/codemirror.css'
 import './index.css';
 import App from './App';
