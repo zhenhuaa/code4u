@@ -1,18 +1,46 @@
-import { OpenAPI3 } from "openapi-typescript";
+import { PathItemObject } from "openapi-typescript";
 import _ from "lodash";
+import { httpMethods } from "./constants";
+import { OpenApiSchema, Tag } from "./types";
 
-export function cloneOpenApi(openApi: OpenAPI3): OpenAPI3 {
+export function cloneOpenApi(openApi: OpenApiSchema): OpenApiSchema {
   return JSON.parse(JSON.stringify(openApi));
 }
 
-export function filterOpenApi(schema: OpenAPI3, grepRegex: string): OpenAPI3 {
+function getRegex(re: string) {
+  try {
+    const regex = new RegExp(re);
+    return regex;
+  } catch (err) {
+    console.error("Invalid Regex");
+    return null;
+  }
+}
+
+function getNewTags(paths: PathItemObject[]) {
+  const newTags = _.values(paths).flatMap((p) => {
+    const tags: Tag[] = [];
+    for (let m of httpMethods) {
+      let refTags = _.get(p, m + ".tags");
+      if (_.isArray(refTags)) {
+        tags.push(...refTags);
+      }
+    }
+    return tags;
+  });
+  return newTags;
+}
+
+export function filterOpenApi(schema: OpenApiSchema, grepRegex: string): OpenApiSchema {
   if (!grepRegex) return schema;
-  const regex = new RegExp(grepRegex);
-  const checkPathMatch = (p: string) => regex.test(p);
+  const regex = getRegex(grepRegex);
+  if (!regex) return schema;
   if (schema.paths) {
+    const checkPathMatch = (p: string) => regex.test(p);
     const paths = filterRecord(schema.paths, checkPathMatch);
     const newSchema = cloneOpenApi(schema);
     newSchema.paths = paths;
+    newSchema.tags = getNewTags(_.values(paths));
     const components = newSchema.components;
     if (components) {
       const refs = getAllRefs(paths, components);
@@ -33,7 +61,7 @@ function filterRecord<V>(record: Record<string, V>, predict: (e: string) => bool
   }, {} as Record<string, V>);
 }
 
-function getAllRefs(openApi: object, components: OpenAPI3["components"]) {
+function getAllRefs(openApi: object, components: OpenApiSchema["components"]) {
   const allRefs: string[] = [];
 
   function walk(obj: any) {
@@ -45,7 +73,7 @@ function getAllRefs(openApi: object, components: OpenAPI3["components"]) {
       }
     } else {
       for (let key of Object.keys(obj)) {
-        if (key == "$ref") {
+        if (key === "$ref") {
           const refKey = obj[key].replace("#/components/", "").replace(/\//g, ".");
           allRefs.push(refKey);
           const refObj = _.get(components, refKey);
@@ -61,9 +89,11 @@ function getAllRefs(openApi: object, components: OpenAPI3["components"]) {
   return allRefs;
 }
 
-export function rebuildComponents(components: OpenAPI3["components"], refKeys: string[]): OpenAPI3["components"] {
+export function rebuildComponents(
+  components: OpenApiSchema["components"],
+  refKeys: string[]
+): OpenApiSchema["components"] {
   const result = {};
-  console.log({ refKeys, result, components }, "xddd");
   for (let path of refKeys) {
     _.set(result, path, _.get(components, path));
   }

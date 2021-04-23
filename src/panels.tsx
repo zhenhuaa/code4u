@@ -1,19 +1,18 @@
-import type { OpenAPI3 } from "openapi-typescript";
 import { Controlled as CodeMirror } from "react-codemirror2";
+import { OpenApiSchema } from "./lib/types";
 
 interface InputProps {
   value: string;
-  useGenCode: (schema: OpenAPI3) => string;
+  useGenCode: (schema: OpenApiSchema) => string;
 }
 
 export function InputPanel(props: InputProps) {
-
   function onBeforeChange(editor: any, data: any, value: string) {
-    let schema = null
+    let schema = null;
     try {
       schema = JSON.parse(value);
-    } catch( err ) {
-      schema = {}
+    } catch (err) {
+      schema = {};
     }
     props.useGenCode(schema);
   }
