@@ -1,0 +1,14 @@
+.toolbar {
+  display: flex;
+  justify-content: space-evenly;
+}
+
+.spec-url {
+  display: flex;
+  width: 100%;
+  max-width: 500px;
+}
+
+.spec-url input {
+  width: 100%;
+}

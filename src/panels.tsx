@@ -7,8 +7,14 @@ interface InputProps {
 }
 
 export function InputPanel(props: InputProps) {
+
   function onBeforeChange(editor: any, data: any, value: string) {
-    const schema = JSON.parse(value);
+    let schema = null
+    try {
+      schema = JSON.parse(value);
+    } catch( err ) {
+      schema = {}
+    }
     props.useGenCode(schema);
   }
 

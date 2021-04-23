@@ -1,0 +1,5 @@
+
+{
+  "src/*.tsx": { "alternate": "src/{}.css", "type": "src" },
+  "src/*.css": { "alternate": "src/{}.tsx", "type": "tsx" }
+}
