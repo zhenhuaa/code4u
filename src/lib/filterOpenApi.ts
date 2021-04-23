@@ -17,9 +17,9 @@ function getRegex(re: string) {
   }
 }
 
-function getNewTags(paths: PathItemObject[]) {
-  const newTags = _.values(paths).flatMap((p) => {
-    const tags: Tag[] = [];
+function getReferTags(paths: PathItemObject[]): string[] {
+  const newTags = paths.flatMap((p) => {
+    const tags: string[] = [];
     for (let m of httpMethods) {
       let refTags = _.get(p, m + ".tags");
       if (_.isArray(refTags)) {
@@ -40,7 +40,8 @@ export function filterOpenApi(schema: OpenApiSchema, grepRegex: string): OpenApi
     const paths = filterRecord(schema.paths, checkPathMatch);
     const newSchema = cloneOpenApi(schema);
     newSchema.paths = paths;
-    newSchema.tags = getNewTags(_.values(paths));
+    const referTags = getReferTags(_.values(paths));
+    newSchema.tags = schema.tags.filter((r) => referTags.includes(r.name));
     const components = newSchema.components;
     if (components) {
       const refs = getAllRefs(paths, components);

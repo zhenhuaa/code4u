@@ -1,8 +1,9 @@
 import "./toolBar.css";
-import { ChangeEvent, useEffect, useState } from "react";
-import { debounce } from "./helper";
+import { useEffect, useState } from "react";
 import { filterOpenApi } from "./lib/filterOpenApi";
 import { OpenApiSchema } from "./lib/types";
+import { useDebounce } from "use-debounce";
+import { debounceTime } from "./lib/constants";
 
 interface ToolBarProps {
   useGenCode: (schema: OpenApiSchema) => void;
@@ -10,50 +11,44 @@ interface ToolBarProps {
 
 export function ToolBar(props: ToolBarProps) {
   const defaultSpecUrl = "http://local.dev.163.com:8881/docs/l10/swagger.json";
-  const [specUrl, setSpecUrl] = useState("");
-  const [grepRegex, setGrepRegex] = useState("");
+  const [specUrl, setSpecUrl] = useState(defaultSpecUrl);
+  const [grepRe, setRe] = useState("");
   const [fullSchema, setFullSchema] = useState<OpenApiSchema | null>(null);
+  const [grepReDep] = useDebounce(grepRe, debounceTime);
+  const [specUrlDep] = useDebounce(specUrl, debounceTime);
 
   useEffect(() => {
-    setSpecUrl(defaultSpecUrl);
-    fetchApiJsonData(defaultSpecUrl);
-  }, []);
+    if (fullSchema) {
+      updateEditors(fullSchema, grepReDep);
+    }
+  });
 
-  function updateEditors(schema: OpenApiSchema) {
-    if(grepRegex) {
-      const newSchema = filterOpenApi(schema, grepRegex);
+  useEffect(() => {
+    fetchApiJsonData(specUrlDep);
+  }, [specUrlDep]);
+
+  function updateEditors(schema: OpenApiSchema, re: string) {
+    if (re) {
+      const newSchema = filterOpenApi(schema, re);
       props.useGenCode(newSchema);
     } else {
-      console.log({schema, fullSchema}, "updateEditorsRestoreSchema")
       props.useGenCode(schema);
     }
   }
+
+  useEffect(() => {
+    if (fullSchema) {
+      updateEditors(fullSchema, grepReDep);
+    }
+  }, [grepReDep]);
 
   async function fetchApiJsonData(specUrl: string) {
     if (specUrl && specUrl.endsWith(".json")) {
       const res = await fetch(specUrl);
       const json: OpenApiSchema = await res.json();
       setFullSchema(json);
-      updateEditors(json);
     } else {
       console.debug("should do nothing");
-    }
-  }
-
-  const fetchApiJsonDataOnChange = debounce(fetchApiJsonData, 500);
-
-  function onSpecUrlChange(event: ChangeEvent<HTMLInputElement>) {
-    const newValue = event.target.value;
-    setSpecUrl(newValue);
-    fetchApiJsonDataOnChange(newValue);
-  }
-
-  function onGrepChange(event: ChangeEvent<HTMLInputElement>) {
-    const re = event.target.value;
-    setGrepRegex(re);
-    console.log({re, fullSchema}, 'onGrepChange')
-    if (fullSchema) {
-      updateEditors(fullSchema);
     }
   }
 
@@ -62,11 +57,11 @@ export function ToolBar(props: ToolBarProps) {
       <div className="toolbar">
         <div className="spec-url">
           <label>SpecUrl: </label>
-          <input placeholder="Url to spec to try" value={specUrl} onChange={onSpecUrlChange} />
+          <input placeholder="Url to spec to try" value={specUrl} onChange={(e) => setSpecUrl(e.target.value)} />
         </div>
         <div className="grep-regex">
           <label>GrepOption: </label>
-          <input placeholder="grep regex for filter path" value={grepRegex} onChange={onGrepChange} />
+          <input placeholder="grep regex for filter path" value={grepRe} onChange={(e) => setRe(e.target.value)} />
         </div>
       </div>
     </nav>
