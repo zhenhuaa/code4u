@@ -3,7 +3,6 @@ import { ToolBar } from "./toolBar";
 import { InputPanel, OutPutPanel } from "./panels";
 import { useMemo, useState } from "react";
 import swaggerToTS from "./lib/openapi-typescript";
-import { tinyCorrect } from "./lib/standardOpenApi";
 
 function App() {
   const [input, setInput] = useState("");
@@ -18,8 +17,7 @@ function App() {
 
   const genCode = useMemo(() => {
     if (!inputSchema) return "";
-    const schema = tinyCorrect(inputSchema);
-    const tsCode = swaggerToTS(schema, { version: 3 });
+    const tsCode = swaggerToTS(inputSchema, { version: 3 });
     return tsCode;
   }, [inputSchema]);
 

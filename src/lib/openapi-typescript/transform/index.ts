@@ -1,5 +1,6 @@
 import { OperationObject, PathItemObject } from "../types";
 import { comment, tsReadonly } from "../utils";
+import { transApiStub } from "./apiStub";
 import { transformHeaderObjMap } from "./headers";
 import { transformOperationObj } from "./operation";
 import { transformPathsObj } from "./paths";
@@ -12,13 +13,10 @@ interface TransformOptions {
   version: number;
 }
 
-
 export function transformAll(schema: any, { immutableTypes, rawSchema, version }: TransformOptions): string {
   const readonly = tsReadonly(immutableTypes);
 
-
   let output = "";
-
 
   let operations: Record<string, { operation: OperationObject; pathItem: PathItemObject }> = {};
 
@@ -38,6 +36,11 @@ export function transformAll(schema: any, { immutableTypes, rawSchema, version }
         })}\n  }\n\n`;
       }
     }
+  }
+
+  if (schema.paths) {
+    const apiStub = transApiStub(schema.paths);
+    output += apiStub;
   }
 
   // #/paths (V2 & V3)

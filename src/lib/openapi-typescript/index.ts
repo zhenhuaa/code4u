@@ -13,8 +13,6 @@ export const WARNING_MESSAGE = `/**
 `;
 
 
-
-
 export default function swaggerToTS(
   schema: OpenAPI2 | OpenAPI3 | Record<string, SchemaObject>,
   options?: SwaggerToTSOptions

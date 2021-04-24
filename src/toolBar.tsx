@@ -5,6 +5,7 @@ import { OpenApiSchema } from "./lib/types";
 import { useDebounce } from "use-debounce";
 import { debounceTime, exampleSpecUrl } from "./lib/constants";
 import { useAsyncMemo } from "./helper";
+import { tinyCorrect } from "./lib/autoFixOpenApi";
 
 interface ToolBarProps {
   setInput: (code: string) => void;
@@ -21,7 +22,11 @@ export function ToolBar(props: ToolBarProps) {
       if (specUrlDep && specUrlDep.endsWith(".json")) {
         const res = await fetch(specUrl);
         const json: OpenApiSchema = await res.json();
-        return json;
+        if (json && json.openapi) {
+          const schema = tinyCorrect(json);
+          return schema;
+        }
+        return null;
       } else {
         return null;
       }
@@ -32,21 +37,13 @@ export function ToolBar(props: ToolBarProps) {
 
   useEffect(() => {
     if (fullSchema) {
-      setInput(fullSchema);
-    }
-  }, [fullSchema]);
-
-  useEffect(() => {
-    if (fullSchema) {
       updateEditors(fullSchema, grepReDep);
     }
-  }, [grepReDep]);
+  }, [grepReDep, fullSchema]);
 
   function setInput(schema: OpenApiSchema) {
-    if (schema) {
-      const code = schema2Code(schema);
-      props.setInput(code);
-    }
+    const code = schema2Code(schema);
+    props.setInput(code);
   }
 
   function schema2Code(schema: object): string {
@@ -55,13 +52,10 @@ export function ToolBar(props: ToolBarProps) {
   }
 
   function updateEditors(schema: OpenApiSchema, re: string) {
-    let newSchema = fullSchema;
     if (re) {
-      newSchema = filterOpenApi(schema, re);
+      schema = filterOpenApi(schema, re);
     }
-    if (newSchema) {
-      setInput(newSchema);
-    }
+    setInput(schema);
   }
 
   return (

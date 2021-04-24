@@ -36,12 +36,14 @@ export function filterOpenApi(schema: OpenApiSchema, grepRegex: string): OpenApi
   const regex = getRegex(grepRegex);
   if (!regex) return schema;
   if (schema.paths) {
-    const checkPathMatch = (p: string) => regex.test(p);
-    const paths = filterRecord(schema.paths, checkPathMatch);
+    const checkMatch = (p: string) => regex.test(p);
+    const paths = filterPaths(schema.paths, checkMatch);
     const newSchema = cloneOpenApi(schema);
     newSchema.paths = paths;
     const referTags = getReferTags(_.values(paths));
-    newSchema.tags = schema.tags.filter(r => referTags.includes(r.name))
+    if (schema.tags) {
+      newSchema.tags = schema.tags.filter((r) => referTags.includes(r.name));
+    }
     const components = newSchema.components;
     if (components) {
       const refs = getAllRefs(paths, components);
@@ -54,12 +56,33 @@ export function filterOpenApi(schema: OpenApiSchema, grepRegex: string): OpenApi
   }
 }
 
-function filterRecord<V>(record: Record<string, V>, predict: (e: string) => boolean): Record<string, V> {
-  const keys = Object.keys(record).filter(predict);
+function filterPaths(
+  r: Record<string, PathItemObject>,
+  predict: (e: string) => boolean
+): Record<string, PathItemObject> {
+  const keys = Object.keys(r).filter((k) => {
+    if (predict(k)) {
+      return true;
+    }
+    for (let m of httpMethods) {
+      if (r[k][m]) {
+        const tags = _.get(r[k], `${m}.tags`) || [];
+        const isTagMatch = _.some(tags, predict);
+        if (isTagMatch) {
+          return isTagMatch;
+        }
+
+        const operationId: string = _.get(r[k], `${m}.operationId`);
+        if (predict(operationId)) {
+          return true;
+        }
+      }
+    }
+  });
   return keys.reduce((ret, k) => {
-    ret[k] = record[k];
+    ret[k] = r[k];
     return ret;
-  }, {} as Record<string, V>);
+  }, {} as Record<string, PathItemObject>);
 }
 
 function getAllRefs(openApi: object, components: OpenApiSchema["components"]) {
