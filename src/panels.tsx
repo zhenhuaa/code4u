@@ -1,20 +1,13 @@
 import { Controlled as CodeMirror } from "react-codemirror2";
-import { OpenApiSchema } from "./lib/types";
 
 interface InputProps {
   value: string;
-  useGenCode: (schema: OpenApiSchema) => string;
+  setValue: (val: string) => void;
 }
 
 export function InputPanel(props: InputProps) {
   function onBeforeChange(editor: any, data: any, value: string) {
-    let schema = null;
-    try {
-      schema = JSON.parse(value);
-    } catch (err) {
-      schema = {};
-    }
-    props.useGenCode(schema);
+    props.setValue(value);
   }
 
   return (

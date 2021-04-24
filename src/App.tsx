@@ -1,34 +1,34 @@
 import "./App.css";
 import { ToolBar } from "./toolBar";
 import { InputPanel, OutPutPanel } from "./panels";
-import { useState } from "react";
-import swaggerToTS from "openapi-typescript";
+import { useMemo, useState } from "react";
+import swaggerToTS from "./lib/openapi-typescript";
 import { tinyCorrect } from "./lib/standardOpenApi";
-import { OpenApiSchema } from "./lib/types";
 
 function App() {
-  const [spec, setSpec] = useState("");
-  const [genCode, setGenCode] = useState("");
+  const [input, setInput] = useState("");
 
-  function updateTsCode(schema: OpenApiSchema) {
-    schema = tinyCorrect(schema);
+  const inputSchema = useMemo(() => {
+    try {
+      return JSON.parse(input);
+    } catch (err) {
+      return null;
+    }
+  }, [input]);
+
+  const genCode = useMemo(() => {
+    if (!inputSchema) return "";
+    const schema = tinyCorrect(inputSchema);
     const tsCode = swaggerToTS(schema, { version: 3 });
-    setGenCode(tsCode);
-  }
-
-  function useGenCode(schema: OpenApiSchema) {
-    const specCode = JSON.stringify(schema, null, 2);
-    setSpec(specCode);
-    updateTsCode(schema);
-    return "";
-  }
+    return tsCode;
+  }, [inputSchema]);
 
   return (
     <div className="playground-container">
-      <ToolBar useGenCode={useGenCode}></ToolBar>
+      <ToolBar setInput={setInput}></ToolBar>
       <div className="editors-container">
         <div className="editors">
-          <InputPanel value={spec} useGenCode={useGenCode}></InputPanel>
+          <InputPanel value={input} setValue={setInput}></InputPanel>
           <OutPutPanel value={genCode}></OutPutPanel>
         </div>
       </div>

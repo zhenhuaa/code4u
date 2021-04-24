@@ -41,7 +41,7 @@ export function filterOpenApi(schema: OpenApiSchema, grepRegex: string): OpenApi
     const newSchema = cloneOpenApi(schema);
     newSchema.paths = paths;
     const referTags = getReferTags(_.values(paths));
-    newSchema.tags = schema.tags.filter((r) => referTags.includes(r.name));
+    newSchema.tags = schema.tags.filter(r => referTags.includes(r.name))
     const components = newSchema.components;
     if (components) {
       const refs = getAllRefs(paths, components);

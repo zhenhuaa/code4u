@@ -3,38 +3,38 @@ import { useEffect, useState } from "react";
 import { filterOpenApi } from "./lib/filterOpenApi";
 import { OpenApiSchema } from "./lib/types";
 import { useDebounce } from "use-debounce";
-import { debounceTime } from "./lib/constants";
+import { debounceTime, exampleSpecUrl } from "./lib/constants";
+import { useAsyncMemo } from "./helper";
 
 interface ToolBarProps {
-  useGenCode: (schema: OpenApiSchema) => void;
+  setInput: (code: string) => void;
 }
 
 export function ToolBar(props: ToolBarProps) {
-  const defaultSpecUrl = "http://local.dev.163.com:8881/docs/l10/swagger.json";
-  const [specUrl, setSpecUrl] = useState(defaultSpecUrl);
+  const [specUrl, setSpecUrl] = useState(exampleSpecUrl);
   const [grepRe, setRe] = useState("");
-  const [fullSchema, setFullSchema] = useState<OpenApiSchema | null>(null);
   const [grepReDep] = useDebounce(grepRe, debounceTime);
   const [specUrlDep] = useDebounce(specUrl, debounceTime);
 
+  const fullSchema = useAsyncMemo(
+    async () => {
+      if (specUrlDep && specUrlDep.endsWith(".json")) {
+        const res = await fetch(specUrl);
+        const json: OpenApiSchema = await res.json();
+        return json;
+      } else {
+        return null;
+      }
+    },
+    [specUrlDep],
+    null
+  );
+
   useEffect(() => {
     if (fullSchema) {
-      updateEditors(fullSchema, grepReDep);
+      setInput(fullSchema);
     }
-  });
-
-  useEffect(() => {
-    fetchApiJsonData(specUrlDep);
-  }, [specUrlDep]);
-
-  function updateEditors(schema: OpenApiSchema, re: string) {
-    if (re) {
-      const newSchema = filterOpenApi(schema, re);
-      props.useGenCode(newSchema);
-    } else {
-      props.useGenCode(schema);
-    }
-  }
+  }, [fullSchema]);
 
   useEffect(() => {
     if (fullSchema) {
@@ -42,13 +42,25 @@ export function ToolBar(props: ToolBarProps) {
     }
   }, [grepReDep]);
 
-  async function fetchApiJsonData(specUrl: string) {
-    if (specUrl && specUrl.endsWith(".json")) {
-      const res = await fetch(specUrl);
-      const json: OpenApiSchema = await res.json();
-      setFullSchema(json);
-    } else {
-      console.debug("should do nothing");
+  function setInput(schema: OpenApiSchema) {
+    if (schema) {
+      const code = schema2Code(schema);
+      props.setInput(code);
+    }
+  }
+
+  function schema2Code(schema: object): string {
+    const specCode = JSON.stringify(schema, null, 2);
+    return specCode;
+  }
+
+  function updateEditors(schema: OpenApiSchema, re: string) {
+    let newSchema = fullSchema;
+    if (re) {
+      newSchema = filterOpenApi(schema, re);
+    }
+    if (newSchema) {
+      setInput(newSchema);
     }
   }
 
