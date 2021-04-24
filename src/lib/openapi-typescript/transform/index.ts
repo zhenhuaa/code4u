@@ -38,10 +38,6 @@ export function transformAll(schema: any, { immutableTypes, rawSchema, version }
     }
   }
 
-  if (schema.paths) {
-    const apiStub = transApiStub(schema.paths);
-    output += apiStub;
-  }
 
   // #/paths (V2 & V3)
   output += `export interface paths {\n`; // open paths
@@ -145,6 +141,12 @@ export function transformAll(schema: any, { immutableTypes, rawSchema, version }
     });
   }
   output += `}\n`; // close operations
+
+
+  if (schema.paths) {
+    const apiStub = transApiStub(schema.paths);
+    output += apiStub;
+  }
 
   return output.trim();
 }

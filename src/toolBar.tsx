@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { filterOpenApi } from "./lib/filterOpenApi";
 import { OpenApiSchema } from "./lib/types";
 import { useDebounce } from "use-debounce";
-import { debounceTime, exampleSpecUrl } from "./lib/constants";
+import { debounceTime, defaultRe, exampleSpecUrl } from "./lib/constants";
 import { useAsyncMemo } from "./helper";
 import { tinyCorrect } from "./lib/autoFixOpenApi";
 
@@ -13,7 +13,7 @@ interface ToolBarProps {
 
 export function ToolBar(props: ToolBarProps) {
   const [specUrl, setSpecUrl] = useState(exampleSpecUrl);
-  const [grepRe, setRe] = useState("");
+  const [grepRe, setRe] = useState(defaultRe);
   const [grepReDep] = useDebounce(grepRe, debounceTime);
   const [specUrlDep] = useDebounce(specUrl, debounceTime);
 
