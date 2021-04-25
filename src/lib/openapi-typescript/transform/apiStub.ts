@@ -1,6 +1,15 @@
 import _ from "lodash";
-import { PathItemObject } from "openapi-typescript";
+import {
+  OpenAPI3,
+  OperationObject,
+  ParameterObject,
+  PathItemObject,
+  ReferenceObject,
+  RequestBody,
+  ResponseObject,
+} from "openapi-typescript";
 import { httpMethods } from "../../constants";
+import { getRefObject, tsUnionOf } from "../utils";
 
 function upperCamelCase(tag: string) {
   const ret = _.camelCase(tag);
@@ -10,45 +19,122 @@ function upperCamelCase(tag: string) {
   return ret;
 }
 
-type ReqNsMap = Record<string, string[]>;
-type ResNsMap = Record<string, string[]>;
-
-function transReqNs(reqNsMap: ReqNsMap) {
-  const lines = [];
-  for (const [key, ops] of Object.entries(reqNsMap)) {
-    lines.push(`export namespace ${key} {`);
-    for (let op of ops) {
-      const refType = upperCamelCase(op);
-      lines.push(`export type ${refType} = operations["${op}"]["parameters"]["query"]`);
+export function getQsList(
+  params: (ReferenceObject | ParameterObject)[] | undefined,
+  schema: OpenAPI3
+): PathItemObject[] {
+  if (!params) return [];
+  const list: PathItemObject[] = [];
+  for (let p of params) {
+    let item: ParameterObject = p as ParameterObject;
+    if ("$ref" in p) {
+      const refP = getRefObject<ParameterObject>(p.$ref, schema.components);
+      item = refP;
     }
-    lines.push("}\n");
+    if (item.in === "query") {
+      list.push(item);
+    }
   }
-  const reqNsCode = lines.join("\n");
-  return reqNsCode
+  return list;
 }
 
-
-
-function transResNs(resNsMap: ResNsMap) {
-  const lines = [];
-  for (const [key, ops] of Object.entries(resNsMap)) {
-    lines.push(`export namespace ${key} {`);
-    for (let op of ops) {
-      const refType = upperCamelCase(op);
-      lines.push(`export type ${refType} = operations["${op}"]["responses"]["200"]["content"]["application/json"]["data"]`);
-    }
-    lines.push("}\n");
+export function getReqBody(reqBody: ReferenceObject | RequestBody | undefined, schema: OpenAPI3): RequestBody | null {
+  if (!reqBody) return null;
+  if ("$ref" in reqBody) {
+    return getRefObject<RequestBody>(reqBody.$ref, schema.components);
+  } else {
+    return reqBody;
   }
-  const reqNsCode = lines.join("\n");
-  return reqNsCode
 }
 
+type TagOpMap = Record<string, OperationObject[]>;
 
-export function transApiStub(paths: Record<string, PathItemObject>): string {
+function getReqUnionTypes(op: OperationObject, schema: OpenAPI3): string[] {
+  const fn = op.operationId as string;
+  const qsList = getQsList(op.parameters, schema);
+
+  const unionTypes: string[] = [];
+
+  if (!_.isEmpty(qsList)) {
+    const qsType = `operations["${fn}"]["parameters"]["query"]`;
+    unionTypes.push(qsType);
+  }
+  const reqBody = getReqBody(op.requestBody, schema);
+
+  if (reqBody) {
+    const bodyType = `operations["${fn}"]["requestBody"]["content"]["application/json"]`;
+    unionTypes.push(bodyType);
+  }
+  return unionTypes;
+}
+
+function transReqNs(tagOpMap: TagOpMap, schema: OpenAPI3) {
+  const lines: string[] = [];
+  for (const [tag, ops] of Object.entries(tagOpMap)) {
+    const nsLines: string[] = [];
+    for (let op of ops) {
+      const fn = op.operationId as string;
+      const typeName = upperCamelCase(fn);
+      const unionTypes = getReqUnionTypes(op, schema);
+      if (unionTypes && unionTypes.length > 0) {
+        const refType = tsUnionOf(unionTypes);
+        nsLines.push(`export type ${typeName} = ${refType}`);
+      }
+    }
+    const ns = tag + "Req";
+    lines.push(...wrapToNameSpaceLines(nsLines, ns));
+  }
+  const reqNsCode = lines.join("\n");
+  return reqNsCode;
+}
+
+function wrapToNameSpaceLines(nsLines: string[], ns: string) {
+  let lines: string[] = [];
+  if (nsLines && nsLines.length > 0) {
+    const fstLine = `export namespace ${ns} {`;
+    const lstLine = "}\n";
+    lines = [fstLine, ...nsLines, lstLine];
+  }
+  return lines;
+}
+
+function isHas200JsonResponse(op: OperationObject, schema: OpenAPI3): boolean {
+  if (!op.responses) return false;
+  let response = op.responses["200"] as ResponseObject;
+  if ("$ref" in response) {
+    response = getRefObject(response, schema.components);
+  }
+  const deepGetKey = "content.application/json.schema.properties.data";
+  const refObj = _.get(response, deepGetKey);
+  return !!refObj;
+}
+
+function transResNs(tagNsMap: TagOpMap, schema: OpenAPI3) {
+  const lines: string[] = [];
+  for (const [tag, ops] of Object.entries(tagNsMap)) {
+    const nsLines: string[] = [];
+    for (let op of ops) {
+      const fn = op.operationId as string;
+      const refType = upperCamelCase(fn);
+      const has200Json = isHas200JsonResponse(op, schema);
+      if (has200Json) {
+        const code = `export type ${refType} = operations["${fn}"]["responses"]["200"]["content"]["application/json"]["data"]`;
+        nsLines.push(code);
+      }
+    }
+    const ns = tag + "Res";
+    lines.push(...wrapToNameSpaceLines(nsLines, ns));
+  }
+  const reqNsCode = lines.join("\n");
+  return reqNsCode;
+}
+
+export function transApiStub(schema: OpenAPI3): string {
   let output = "";
-  const reqNsMap: ReqNsMap = {};
-  const resNsMap: ResNsMap = {};
-  const apiStubLines: string[] = []
+  const paths = schema.paths;
+  if (!paths) return "";
+  const tagNsMap: TagOpMap = {};
+  const apiStubLines: string[] = [];
   Object.entries(paths).forEach(([url, pathItem]) => {
     for (let m of httpMethods) {
       const operation = pathItem[m];
@@ -62,37 +148,44 @@ export function transApiStub(paths: Record<string, PathItemObject>): string {
       const resNs = `${tag}Res`;
       const fn = operation.operationId;
       if (!fn) continue;
-      const refType = upperCamelCase(fn);
-      const code = `export async function ${fn}(params: ${reqNs}.${refType}): Promise<${resNs}.${refType}> {\n\n}\n\n`;
-      apiStubLines.push(code)
 
-      if (reqNsMap[reqNs]) {
-        reqNsMap[reqNs].push(fn);
-      } else {
-        reqNsMap[reqNs] = [fn];
+      const refType = upperCamelCase(fn);
+      let parameters = "";
+
+      const unionTypes = getReqUnionTypes(operation, schema)
+      if (!_.isEmpty(unionTypes)) {
+        parameters = `params: ${reqNs}.${refType}`;
       }
 
-      if (resNsMap[reqNs]) {
-        resNsMap[resNs].push(fn);
+      let retType = "unknown";
+      const has200Json = isHas200JsonResponse(operation, schema);
+      if (has200Json) {
+        retType = `${resNs}.${refType}`;
+      }
+
+      const code = `export async function ${fn}(${parameters}): Promise<${retType}> {\n\n}\n\n`;
+
+      apiStubLines.push(code);
+
+      if (tagNsMap[tag]) {
+        tagNsMap[tag].push(operation);
       } else {
-        resNsMap[resNs] = [fn];
+        tagNsMap[tag] = [operation];
       }
     }
   });
 
   // generate req namespace code
-  const reqNsCode = transReqNs(reqNsMap)
+  const reqNsCode = transReqNs(tagNsMap, schema);
   output += reqNsCode;
 
   // generate res namespace code
-  const resNsCode = transResNs(resNsMap)
+  const resNsCode = transResNs(tagNsMap, schema);
   output += resNsCode;
 
-
   // generate api stub code
-  const apiCode = apiStubLines.join('\n')
-  output += apiCode
-
+  const apiCode = apiStubLines.join("\n");
+  output += apiCode;
 
   return output;
 }

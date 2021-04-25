@@ -1,3 +1,5 @@
+import { OpenApiSchema } from "../types";
+import * as _ from "lodash";
 import { OpenAPI2, OpenAPI3, ReferenceObject } from "./types";
 
 export function comment(text: string): string {
@@ -130,4 +132,14 @@ export function tsUnionOf(types: Array<string | number | boolean>): string {
 export function unrefComponent(components: any, ref: string): any {
   const [type, object] = ref.match(/(?<=\[")([^"]+)/g) as string[];
   return components[type][object];
+}
+
+export function getComponentRef(ref: string): string {
+  const refKey = ref.replace("#/components/", "").replace(/\//g, ".");
+  return refKey;
+}
+
+export function getRefObject<T>(ref: string, components: OpenApiSchema["components"]): T {
+  const refKey = getComponentRef(ref);
+  return _.get(components, refKey);
 }

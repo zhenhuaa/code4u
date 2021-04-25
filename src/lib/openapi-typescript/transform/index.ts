@@ -144,7 +144,7 @@ export function transformAll(schema: any, { immutableTypes, rawSchema, version }
 
 
   if (schema.paths) {
-    const apiStub = transApiStub(schema.paths);
+    const apiStub = transApiStub(schema);
     output += apiStub;
   }
 

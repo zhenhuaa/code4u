@@ -1,7 +1,8 @@
 import { PathItemObject } from "openapi-typescript";
 import _ from "lodash";
 import { httpMethods } from "./constants";
-import { OpenApiSchema, Tag } from "./types";
+import { OpenApiSchema } from "./types";
+import {getComponentRef} from "./openapi-typescript/utils";
 
 export function cloneOpenApi(openApi: OpenApiSchema): OpenApiSchema {
   return JSON.parse(JSON.stringify(openApi));
@@ -98,7 +99,7 @@ function getAllRefs(openApi: object, components: OpenApiSchema["components"]) {
     } else {
       for (let key of Object.keys(obj)) {
         if (key === "$ref") {
-          const refKey = obj[key].replace("#/components/", "").replace(/\//g, ".");
+          const refKey = getComponentRef(obj[key]);
           allRefs.push(refKey);
           const refObj = _.get(components, refKey);
           if (refObj) {
