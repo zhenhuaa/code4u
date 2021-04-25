@@ -6,7 +6,6 @@ import {
   PathItemObject,
   ReferenceObject,
   RequestBody,
-  ResponseObject,
 } from "openapi-typescript";
 import { httpMethods } from "../../constants";
 import { getRefObject, tsUnionOf } from "../utils";
@@ -17,6 +16,13 @@ function upperCamelCase(tag: string) {
     return ret[0].toUpperCase() + ret.substr(1);
   }
   return ret;
+}
+
+function getBaseUrl(servers: OpenAPI3["servers"]) {
+  if (servers && servers.length > 0) {
+    return servers[0].url;
+  }
+  return "";
 }
 
 export function getQsList(
@@ -135,6 +141,15 @@ export function transApiStub(schema: OpenAPI3): string {
   if (!paths) return "";
   const tagNsMap: TagOpMap = {};
   const apiStubLines: string[] = [];
+  const axiosLines = [];
+  const baseUrl = getBaseUrl(schema.servers);
+  axiosLines.push('import axios from "axios"\n');
+  axiosLines.push("const request = axios.create({");
+  axiosLines.push(`baseUrl: "${baseUrl}"`);
+  axiosLines.push("})\n\n");
+  const axiosCode = axiosLines.join("\n");
+  let shouldWriteAxiosCode = false
+
   Object.entries(paths).forEach(([url, pathItem]) => {
     for (let m of httpMethods) {
       const operation = pathItem[m];
@@ -152,7 +167,7 @@ export function transApiStub(schema: OpenAPI3): string {
       const refType = upperCamelCase(fn);
       let parameters = "";
 
-      const unionTypes = getReqUnionTypes(operation, schema)
+      const unionTypes = getReqUnionTypes(operation, schema);
       if (!_.isEmpty(unionTypes)) {
         parameters = `params: ${reqNs}.${refType}`;
       }
@@ -163,9 +178,21 @@ export function transApiStub(schema: OpenAPI3): string {
         retType = `${resNs}.${refType}`;
       }
 
-      const code = `export async function ${fn}(${parameters}): Promise<${retType}> {\n\n}\n\n`;
+      // apiStubLines.push(axiosCode)
 
-      apiStubLines.push(code);
+      shouldWriteAxiosCode = true
+      const funcLines: string[] = [];
+      const fnStart = `export async function ${fn}(${parameters}): Promise<${retType}> {`;
+      const fnEnd = "}\n";
+
+      funcLines.push(fnStart);
+      //TODO add function implementation
+
+      funcLines.push(fnEnd);
+
+      const funcCode = funcLines.join("\n");
+
+      apiStubLines.push(funcCode);
 
       if (tagNsMap[tag]) {
         tagNsMap[tag].push(operation);
@@ -182,6 +209,12 @@ export function transApiStub(schema: OpenAPI3): string {
   // generate res namespace code
   const resNsCode = transResNs(tagNsMap, schema);
   output += resNsCode;
+
+
+  // gen axios code
+  if(shouldWriteAxiosCode) {
+    output += axiosCode
+  }
 
   // generate api stub code
   const apiCode = apiStubLines.join("\n");

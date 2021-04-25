@@ -5,6 +5,7 @@ import { OpenApiSchema } from "./types";
 export function tinyCorrect(schema: OpenApiSchema) {
   const paths = schema.paths;
   _.each(paths, (p, pathKey) => {
+    const methodsNum = Object.keys(p).length
     for (let m of httpMethods) {
       const desc = p[m]?.description;
       const summary = p[m]?.summary;
@@ -17,7 +18,11 @@ export function tinyCorrect(schema: OpenApiSchema) {
       if (p[m]) {
         if (!operationId) {
           // auto set operationId by path and http method
-          operationId = (m + pathKey).replace(/\//g, "_");
+          let prefix = ''
+          if(methodsNum > 1) {
+            prefix = m
+          }
+          operationId = (prefix  + pathKey).replace(/\//g, "_");
         }
         _.set(p, m + ".operationId", _.camelCase(operationId));
       }
