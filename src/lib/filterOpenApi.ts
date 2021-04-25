@@ -10,7 +10,7 @@ export function cloneOpenApi(openApi: OpenApiSchema): OpenApiSchema {
 
 function getRegex(re: string) {
   try {
-    const regex = new RegExp(re);
+    const regex = new RegExp(re, "i");
     return regex;
   } catch (err) {
     console.error("Invalid Regex");

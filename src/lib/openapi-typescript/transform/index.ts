@@ -1,5 +1,5 @@
 import { OperationObject, PathItemObject } from "../types";
-import { comment, tsReadonly } from "../utils";
+import { tsReadonly } from "../utils";
 import { transApiStub } from "./apiStub";
 import { transformHeaderObjMap } from "./headers";
 import { transformOperationObj } from "./operation";
@@ -38,18 +38,19 @@ export function transformAll(schema: any, { immutableTypes, rawSchema, version }
     }
   }
 
-
   // #/paths (V2 & V3)
-  output += `export interface paths {\n`; // open paths
   if (schema.paths) {
-    output += transformPathsObj(schema.paths, {
+    const fstLine = `export interface paths {\n`; // open paths
+    const pathCode = transformPathsObj(schema.paths, {
       globalParameters: (schema.components && schema.components.parameters) || schema.parameters,
       immutableTypes,
       operations,
       version,
     });
+    const endLine = `}\n\n`; // close paths
+    const pathLines = [fstLine, pathCode, endLine];
+    // output += pathLines.join('\n')
   }
-  output += `}\n\n`; // close paths
 
   switch (version) {
     case 2: {
@@ -131,7 +132,7 @@ export function transformAll(schema: any, { immutableTypes, rawSchema, version }
   output += `export interface operations {\n`; // open operations
   if (Object.keys(operations).length) {
     Object.entries(operations).forEach(([operationId, { operation, pathItem }]) => {
-      if (operation.description) output += comment(operation.description); // handle comment
+      // if (operation.description) output += comment(operation.description); // handle comment
       output += `  ${readonly}"${operationId}": {\n    ${transformOperationObj(operation, {
         pathItem,
         globalParameters: (schema.components && schema.components.parameters) || schema.parameters,
@@ -141,7 +142,6 @@ export function transformAll(schema: any, { immutableTypes, rawSchema, version }
     });
   }
   output += `}\n`; // close operations
-
 
   if (schema.paths) {
     const apiStub = transApiStub(schema);

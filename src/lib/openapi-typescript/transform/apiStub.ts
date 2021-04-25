@@ -10,7 +10,7 @@ import {
   SchemaObject,
 } from "openapi-typescript";
 import { httpMethods } from "../../constants";
-import { getRefObject, tsUnionOf } from "../utils";
+import { getRefObject, tsIntersectionOf, comment } from "../utils";
 
 function upperCamelCase(tag: string) {
   const ret = _.camelCase(tag);
@@ -109,7 +109,7 @@ function transReqNs(tagOpMap: TagOpMap, schema: OpenAPI3) {
       const typeName = upperCamelCase(fn);
       const unionTypes = getReqUnionTypes(op, schema);
       if (unionTypes && unionTypes.length > 0) {
-        const refType = tsUnionOf(unionTypes);
+        const refType = tsIntersectionOf(unionTypes);
         nsLines.push(`export type ${typeName} = ${refType}`);
       }
     }
@@ -186,7 +186,11 @@ function genFunCode(tag: string, url: string, m: HttpMethod, operation: Operatio
     retType = `${resNs}.${refType}`;
   }
   const funcLines: string[] = [];
-  const fnStart = `export async function ${fn}(${parameters}): Promise<${retType}> {`;
+  let fnComment  = ''
+  if(operation.description) {
+    fnComment = comment(operation.description)
+  }
+  const fnStart = `${fnComment}export async function ${fn}(${parameters}): Promise<${retType}> {`;
   const fnEnd = "}\n";
 
   const pathParams = getPathParamsList(operation.parameters, schema)
@@ -195,9 +199,10 @@ function genFunCode(tag: string, url: string, m: HttpMethod, operation: Operatio
   }
 
   funcLines.push(fnStart);
+  const method = _.upperCase(m)
   const paramsKey = m === "get" ? "params" : "data";
   funcLines.push(`const data = await request({`);
-  funcLines.push(`method: "${m}",`);
+  funcLines.push(`method: "${method}",`);
   if(pathParams.length > 0) {
     funcLines.push(`url: \`${url}\`,`);
   } else {
@@ -249,6 +254,8 @@ export function transApiStub(schema: OpenAPI3): string {
     }
   });
 
+
+
   // generate req namespace code
   const reqNsCode = transReqNs(tagNsMap, schema);
   output += reqNsCode;
@@ -256,6 +263,10 @@ export function transApiStub(schema: OpenAPI3): string {
   // generate res namespace code
   const resNsCode = transResNs(tagNsMap, schema);
   output += resNsCode;
+
+  // generate line spacing
+  const apiFuncWarn = `\n/* ========= here begin to generate api functions ======= **/\n\n`
+  output += apiFuncWarn;
 
   // gen axios code
   if (shouldWriteAxiosCode) {
