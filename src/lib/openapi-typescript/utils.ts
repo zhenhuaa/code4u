@@ -135,8 +135,13 @@ export function unrefComponent(components: any, ref: string): any {
 }
 
 export function getComponentRef(ref: string): string {
-  const refKey = ref.replace("#/components/", "").replace(/\//g, ".");
-  return refKey;
+  try {
+    const refKey = ref.replace("#/components/", "").replace(/\//g, ".");
+    return refKey;
+  } catch (err) {
+    console.log({ err, ref }, "getComponentRef");
+    return ""
+  }
 }
 
 export function getRefObject<T>(ref: string, components: OpenApiSchema["components"]): T {

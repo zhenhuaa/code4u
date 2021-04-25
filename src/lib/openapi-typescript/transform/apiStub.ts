@@ -91,8 +91,8 @@ function transReqNs(tagOpMap: TagOpMap, schema: OpenAPI3) {
 function wrapToNameSpaceLines(nsLines: string[], ns: string) {
   let lines: string[] = [];
   if (nsLines && nsLines.length > 0) {
-    const fstLine = `export namespace ${ns} {`;
-    const lstLine = "}\n";
+    const fstLine = `\nexport namespace ${ns} {`;
+    const lstLine = "}\n\n";
     lines = [fstLine, ...nsLines, lstLine];
   }
   return lines;
@@ -100,9 +100,9 @@ function wrapToNameSpaceLines(nsLines: string[], ns: string) {
 
 function isHas200JsonResponse(op: OperationObject, schema: OpenAPI3): boolean {
   if (!op.responses) return false;
-  let response = op.responses["200"] as ResponseObject;
+  let response = op.responses["200"];
   if ("$ref" in response) {
-    response = getRefObject(response, schema.components);
+    response = getRefObject(response.$ref, schema.components);
   }
   const deepGetKey = "content.application/json.schema.properties.data";
   const refObj = _.get(response, deepGetKey);
