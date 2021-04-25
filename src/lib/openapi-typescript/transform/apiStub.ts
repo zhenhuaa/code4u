@@ -8,7 +8,7 @@ import {
   ReferenceObject,
   RequestBody,
   SchemaObject,
-} from "openapi-typescript";
+} from "../types";
 import { httpMethods } from "../../constants";
 import { getRefObject, tsIntersectionOf, comment } from "../utils";
 
@@ -89,13 +89,11 @@ function getReqUnionTypes(op: OperationObject, schema: OpenAPI3): string[] {
     unionTypes.push(pathType);
   }
 
-
   const reqBody = getReqBody(op.requestBody, schema);
   if (reqBody) {
     const bodyType = `operations["${fn}"]["requestBody"]["content"]["application/json"]`;
     unionTypes.push(bodyType);
   }
-
 
   return unionTypes;
 }
@@ -186,24 +184,24 @@ function genFunCode(tag: string, url: string, m: HttpMethod, operation: Operatio
     retType = `${resNs}.${refType}`;
   }
   const funcLines: string[] = [];
-  let fnComment  = ''
-  if(operation.description) {
-    fnComment = comment(operation.description)
+  let fnComment = "";
+  if (operation.description) {
+    fnComment = comment(operation.description);
   }
   const fnStart = `${fnComment}export async function ${fn}(${parameters}): Promise<${retType}> {`;
   const fnEnd = "}\n";
 
-  const pathParams = getPathParamsList(operation.parameters, schema)
-  if(pathParams.length > 0) {
-    url = url.replace(/{([a-zA-Z_]+)}/g, '${params.$1}')
+  const pathParams = getPathParamsList(operation.parameters, schema);
+  if (pathParams.length > 0) {
+    url = url.replace(/{([a-zA-Z_]+)}/g, "${params.$1}");
   }
 
   funcLines.push(fnStart);
-  const method = _.upperCase(m)
+  const method = _.upperCase(m);
   const paramsKey = m === "get" ? "params" : "data";
   funcLines.push(`const data = await request({`);
   funcLines.push(`method: "${method}",`);
-  if(pathParams.length > 0) {
+  if (pathParams.length > 0) {
     funcLines.push(`url: \`${url}\`,`);
   } else {
     funcLines.push(`url: "${url}",`);
@@ -254,8 +252,6 @@ export function transApiStub(schema: OpenAPI3): string {
     }
   });
 
-
-
   // generate req namespace code
   const reqNsCode = transReqNs(tagNsMap, schema);
   output += reqNsCode;
@@ -265,7 +261,7 @@ export function transApiStub(schema: OpenAPI3): string {
   output += resNsCode;
 
   // generate line spacing
-  const apiFuncWarn = `\n/* ========= here begin to generate api functions ======= **/\n\n`
+  const apiFuncWarn = `\n/* ========= here begin to generate api functions ======= **/\n\n`;
   output += apiFuncWarn;
 
   // gen axios code

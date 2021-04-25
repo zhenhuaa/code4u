@@ -1,3 +1,15 @@
+export interface Tag {
+  name: string;
+  description: string;
+}
+
+export interface ServerInfo {
+  url: string;
+  description: string;
+}
+
+export type HttpMethod = 'get' | 'put' | 'post' | 'delete'
+
 export interface OpenAPI2 {
   swagger: string; // required
   paths?: Record<string, PathItemObject>;
@@ -9,6 +21,8 @@ export interface OpenAPI2 {
 export interface OpenAPI3 {
   openapi: string; // required
   paths?: Record<string, PathItemObject>; // required
+  tags?: Tag[];
+  servers?: ServerInfo[];
   components?: {
     schemas?: Record<string, ReferenceObject | SchemaObject>;
     responses?: Record<string, ReferenceObject | ResponseObject>;
@@ -117,3 +131,5 @@ export interface SwaggerToTSOptions {
   /** (optional) OpenAPI version. Must be present if parsing raw schema */
   version?: number;
 }
+
+export type httpMethods = 'get' | 'post'
