@@ -1,8 +1,8 @@
-import { PathItemObject } from "openapi-typescript";
 import _ from "lodash";
 import { httpMethods } from "./constants";
 import { OpenApiSchema } from "./types";
-import {getComponentRef} from "./openapi-typescript/utils";
+import { getComponentRef } from "./openapi-typescript/utils";
+import { PathItemObject } from "./openapi-typescript/types";
 
 export function cloneOpenApi(openApi: OpenApiSchema): OpenApiSchema {
   return JSON.parse(JSON.stringify(openApi));
