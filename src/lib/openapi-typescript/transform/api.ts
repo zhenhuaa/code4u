@@ -106,8 +106,11 @@ function getReqUnionTypes(op: OperationObject, schema: OpenAPI3): string[] {
   }
 
   if (reqBody) {
-    const bodyType = `operations["${fn}"]["requestBody"]["content"]["application/json"]`;
-    unionTypes.push(bodyType);
+    const hasJsonBody = isContainJsonSchema(reqBody, schema)
+    if(hasJsonBody) {
+      const bodyType = `operations["${fn}"]["requestBody"]["content"]["application/json"]`;
+      unionTypes.push(bodyType);
+    }
   }
 
   return unionTypes;
@@ -149,15 +152,9 @@ function isAnyOfOrOneOfOrAllOf(node: object) {
 }
 
 
-
-function isHas200JsonResponse(op: OperationObject, schema: OpenAPI3): boolean {
-  let response = _.get(op, 'responses.200');
-  if (!response) return false;
-  if ("$ref" in response) {
-    response = getRefObject(response.$ref, schema.components);
-  }
+function isContainJsonSchema(obj: SchemaObject, schema: OpenAPI3) {
   const deepGetKey = "content.application/json.schema";
-  const refObj: SchemaObject | ReferenceObject = _.get(response, deepGetKey);
+  const refObj: SchemaObject | ReferenceObject = _.get(obj, deepGetKey);
 
   let schemaObj = refObj || {};
   if ("$ref" in schemaObj) {
@@ -165,6 +162,17 @@ function isHas200JsonResponse(op: OperationObject, schema: OpenAPI3): boolean {
     schemaObj = resSchema;
   }
   const hasRes = isAnyOfOrOneOfOrAllOf(schemaObj) || (!!schemaObj.type) 
+  return hasRes
+}
+
+
+function isHas200JsonResponse(op: OperationObject, schema: OpenAPI3): boolean {
+  let response = _.get(op, 'responses.200');
+  if (!response) return false;
+  if ("$ref" in response) {
+    response = getRefObject(response.$ref, schema.components);
+  }
+  const hasRes = isContainJsonSchema(response, schema)
   return hasRes
 }
 
