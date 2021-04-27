@@ -1,6 +1,6 @@
 import { OperationObject, PathItemObject } from "../types";
 import { tsReadonly } from "../utils";
-import { transApiStub } from "./apiStub";
+import { transApiStub } from "./api";
 import { transformHeaderObjMap } from "./headers";
 import { transformOperationObj } from "./operation";
 import { transformPathsObj } from "./paths";
