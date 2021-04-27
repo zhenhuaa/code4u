@@ -233,7 +233,7 @@ function genFunCode(tag: string, url: string, m: HttpMethod, operation: Operatio
 
   function getParamDataLine(qsList: PathItemObject[], body: RequestBody, fn: string) {
     let line = "";
-    console.log(qsList, body, "fn");
+    // console.log(qsList, body, "fn");
     if (!_.isEmpty(qsList)) {
       line += "params: params,\n";
     }

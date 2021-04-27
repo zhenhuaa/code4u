@@ -1,3 +1,4 @@
+import _ from "lodash";
 import {
   comment,
   nodeType,
@@ -32,8 +33,11 @@ export function transformSchemaObjMap(obj: Record<string, any>, options: Transfo
     }
     if (value.description) output += comment(value.description);
 
+    // check required ignore case
+    const isRequired = _.some(required, r => r.toLowerCase() == key.toLowerCase())
+
     // 2. name (with “?” if optional property)
-    output += `${readonly}"${key}"${required.includes(key) ? "" : "?"}: `;
+    output += `${readonly}"${key}"${isRequired ? "" : "?"}: `;
 
     // 3. transform
     output += transformSchemaObj(value.schema || value, { immutableTypes: options.immutableTypes });
