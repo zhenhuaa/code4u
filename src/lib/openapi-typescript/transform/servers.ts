@@ -28,12 +28,18 @@ export function transServersToType(schema: OpenAPI3) {
 }
 
 export function transServers(schema: OpenAPI3) {
-  const enumCode = transServersToEnum(schema);
-  return enumCode;
+  const { code } = transServersToEnum(schema);
+  return code;
+}
+
+export function getFirstServerEnum(schema: OpenAPI3) {
+  const {serverNames} = transServersToEnum(schema)
+  return serverNames[0] || ""
 }
 
 export function transServersToEnum(schema: OpenAPI3) {
-  if (!schema.servers) return "";
+  const result = { serverNames: [], code: "" };
+  if (!schema.servers) return result;
   const servers = schema.servers;
   const enumLines: string[] = [];
   let i = 0;
@@ -55,7 +61,7 @@ export function transServersToEnum(schema: OpenAPI3) {
     const endLine = "}\n\n";
     const codeLines = [fstLine, ...enumLines, endLine];
     const code = codeLines.join("\n");
-    return code;
+    return { serverNames: serverNames, code: code };
   }
-  return "";
+  return result
 }

@@ -1,12 +1,12 @@
 import { OperationObject, PathItemObject } from "../types";
 import { tsReadonly } from "../utils";
-import { transApiStub } from "./api";
+import { genApiClient } from "./api";
 import { transformHeaderObjMap } from "./headers";
 import { transformOperationObj } from "./operation";
 import { transformPathsObj } from "./paths";
 import { transformResponsesObj, transformRequestBodies } from "./responses";
 import { transformSchemaObjMap } from "./schema";
-import {transServers} from "./servers";
+import { transServers } from "./servers";
 
 interface TransformOptions {
   immutableTypes: boolean;
@@ -38,9 +38,8 @@ export function transformAll(schema: any, { immutableTypes, rawSchema, version }
       }
     }
   }
-  const server = transServers(schema)
-  output += server
-
+  const server = transServers(schema);
+  output += server;
 
   // #/paths (V2 & V3)
   if (schema.paths) {
@@ -148,8 +147,8 @@ export function transformAll(schema: any, { immutableTypes, rawSchema, version }
   output += `}\n`; // close operations
 
   if (schema.paths) {
-    const apiStub = transApiStub(schema);
-    output += apiStub;
+    const apiClient = genApiClient(schema);
+    output += apiClient;
   }
 
   return output.trim();

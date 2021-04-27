@@ -18,23 +18,23 @@ interface TransformSchemaObjMapOptions {
 /** Take object keys and convert to TypeScript interface */
 export function transformSchemaObjMap(obj: Record<string, any>, options: TransformSchemaObjMapOptions): string {
   const readonly = options.immutableTypes ? "readonly " : "";
-  let required = (options && options.required) || [];
+  const required = (options && options.required) || Object.keys(obj || {});
 
   let output = "";
 
   Object.entries(obj).forEach(([key, value]) => {
     // 1. JSDoc comment (goes above property)
-    if (value.example) {
-      if(value.description) {
-        value.description += value.description + `\n@example ${value.example}`
-      } else {
-        value.description = `@example ${value.example}`
-      }
+    const commentLines = []
+    if(value.description) {
+      commentLines.push(value.description)
     }
-    if (value.description) output += comment(value.description);
+    if(value.example) {
+      commentLines.push(`@example ${value.example}`)
+    }
+    if (commentLines.length > 0) output += comment(commentLines.join('\n'));
 
     // check required ignore case
-    const isRequired = _.some(required, r => r.toLowerCase() == key.toLowerCase())
+    const isRequired = _.some(required, r => r.toLowerCase() === key.toLowerCase())
 
     // 2. name (with “?” if optional property)
     output += `${readonly}"${key}"${isRequired ? "" : "?"}: `;

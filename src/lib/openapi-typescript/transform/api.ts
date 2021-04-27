@@ -11,6 +11,7 @@ import {
 } from "../types";
 import { httpMethods } from "../../constants";
 import { getRefObject, tsIntersectionOf, comment } from "../utils";
+import { getFirstServerEnum } from "./servers";
 
 function upperCamelCase(tag: string) {
   const ret = _.camelCase(tag);
@@ -18,13 +19,6 @@ function upperCamelCase(tag: string) {
     return ret[0].toUpperCase() + ret.substr(1);
   }
   return ret;
-}
-
-function getBaseUrl(servers: OpenAPI3["servers"]) {
-  if (servers && servers.length > 0) {
-    return servers[0].url;
-  }
-  return "";
 }
 
 export function getTypeParamsList(
@@ -74,13 +68,12 @@ type TagOpMap = Record<string, OperationObject[]>;
 
 type AllTypeParams = [PathItemObject[], PathItemObject[], RequestBody];
 
-
 function getAllTypeReqParams(op: OperationObject, schema: OpenAPI3): AllTypeParams {
   const qsList = getQsList(op.parameters, schema);
   const pathList = getPathParamsList(op.parameters, schema);
   const reqBody = getReqBody(op.requestBody, schema);
   const result = [pathList, qsList, reqBody] as AllTypeParams;
-  return result
+  return result;
 }
 
 function getReqUnionTypes(op: OperationObject, schema: OpenAPI3): string[] {
@@ -194,7 +187,35 @@ function transResNs(tagNsMap: TagOpMap, schema: OpenAPI3) {
   return reqNsCode;
 }
 
-function genFunCode(tag: string, url: string, m: HttpMethod, operation: OperationObject, schema: OpenAPI3) {
+function genClassHeadCode() {
+  return `
+  import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
+\nexport class ApiClient {
+  private request: AxiosInstance;
+  constructor(instance: AxiosInstance) {
+    this.request = instance
+  }
+`;
+}
+
+function genClassTailCode() {
+  return `\nstatic create(baseURL: EServers, option?: AxiosRequestConfig) {
+    const initOpt = option || {};
+    const instance = axios.create({
+      baseURL: baseURL,
+      ...initOpt,
+    });
+    return new ApiClient(instance)
+  }
+
+  /** 使用外部注入的axios实例请求, 方便自定义封装 */
+  static from(instance: AxiosInstance) {
+    return new ApiClient(instance)
+  }
+}`;
+}
+
+function genClassMethodCode(tag: string, url: string, m: HttpMethod, operation: OperationObject, schema: OpenAPI3) {
   function getReturnType() {
     let retType = "unknown";
     const has200Json = isHas200JsonResponse(operation, schema);
@@ -228,7 +249,7 @@ function genFunCode(tag: string, url: string, m: HttpMethod, operation: Operatio
     if (operation.description) {
       fnComment = comment(operation.description);
     }
-    return `${fnComment}export async function ${fn}(${parameters}): Promise<${retType}> {`;
+    return `${fnComment}async ${fn}(${parameters}): Promise<${retType}> {`;
   }
 
   function getParamDataLine(qsList: PathItemObject[], body: RequestBody, fn: string) {
@@ -258,35 +279,24 @@ function genFunCode(tag: string, url: string, m: HttpMethod, operation: Operatio
   const [pathList, qsList, reqBody] = getAllTypeReqParams(operation, schema);
 
   fnLine.push(fnStart);
-  fnLine.push(`const data = await request({`);
+  fnLine.push(`const res = await this.request({`);
   const method = _.upperCase(m);
   fnLine.push(`method: "${method}",`);
   const urlLine = getUrlLine(pathList);
   fnLine.push(urlLine);
   fnLine.push(getParamDataLine(qsList, reqBody, fn));
   fnLine.push("})");
-  fnLine.push(`const result: ${retType} = data.data\nreturn result`);
+  fnLine.push(`const result: ${retType} = res.data\nreturn result`);
   fnLine.push(fnEnd);
   const funcCode = fnLine.join("\n");
   return funcCode;
 }
 
-function transRequestLibCode(schema: OpenAPI3) {
-  const axiosLines = [];
-  const baseUrl = getBaseUrl(schema.servers);
-  axiosLines.push('import axios from "axios"\n');
-  axiosLines.push("const request = axios.create({");
-  axiosLines.push(`baseURL: "${baseUrl}"`);
-  axiosLines.push("})\n\n");
-  const axiosCode = axiosLines.join("\n");
-  return axiosCode;
-}
-
-export function transApiStub(schema: OpenAPI3): string {
+export function genApiClient(schema: OpenAPI3): string {
   let output = "";
   const tagNsMap: TagOpMap = {};
 
-  const apiFnCode = genApiFnCode(schema, tagNsMap);
+  const apiFnCode = genApiClassCode(schema, tagNsMap);
 
   // generate req namespace code
   const reqNsCode = transReqNs(tagNsMap, schema);
@@ -296,22 +306,16 @@ export function transApiStub(schema: OpenAPI3): string {
   const resNsCode = transResNs(tagNsMap, schema);
   output += resNsCode;
 
-  // gen axios code
-  if (apiFnCode) {
-    const axiosCode = transRequestLibCode(schema);
-    output += axiosCode;
-  }
-
   // generate api stub code
   output += apiFnCode;
 
   return output;
 }
 
-function genApiFnCode(schema: OpenAPI3, tagNsMap: TagOpMap) {
+function genApiClassCode(schema: OpenAPI3, tagNsMap: TagOpMap) {
   const paths = schema.paths;
   if (!paths) return "";
-  const apiStubLines: string[] = [];
+  const methodLines: string[] = [];
   Object.entries(paths).forEach(([url, pathItem]) => {
     for (let m of httpMethods) {
       const operation = pathItem[m];
@@ -322,8 +326,8 @@ function genApiFnCode(schema: OpenAPI3, tagNsMap: TagOpMap) {
       }
       tag = upperCamelCase(tag);
 
-      const funcCode = genFunCode(tag, url, m, operation, schema);
-      apiStubLines.push(funcCode);
+      const funcCode = genClassMethodCode(tag, url, m, operation, schema);
+      methodLines.push(funcCode);
 
       if (tagNsMap[tag]) {
         tagNsMap[tag].push(operation);
@@ -333,6 +337,18 @@ function genApiFnCode(schema: OpenAPI3, tagNsMap: TagOpMap) {
     }
   });
 
-  const code = apiStubLines.join("\n");
-  return code;
+  const code = methodLines.join("\n");
+
+  let output = "";
+  if (code) {
+    output += genClassHeadCode();
+    output += code;
+    output += genClassTailCode();
+    const firstServer = getFirstServerEnum(schema);
+    if (firstServer) {
+      const tailCode = `\n\nexport const apiClient = ApiClient.create(EServers.${firstServer})\n`;
+      output += tailCode;
+    }
+  }
+  return output;
 }
