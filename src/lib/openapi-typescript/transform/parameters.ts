@@ -1,5 +1,6 @@
+import _ from "lodash";
 import { ParameterObject, ReferenceObject } from "../types";
-import { comment, tsReadonly } from "../utils";
+import { comment, getRefObject, tsReadonly } from "../utils";
 import { transformSchemaObj } from "./schema";
 
 export function transformParametersArray(
@@ -53,6 +54,19 @@ export function transformParametersArray(
       let paramComment = "";
       if (paramObj.deprecated) paramComment += `@deprecated `;
       if (paramObj.description) paramComment += paramObj.description;
+
+      let schemaObj = paramObj.schema || {};
+      if (schemaObj && "$ref" in schemaObj) {
+        // schemaObj = getRefObject(schemaObj.$ref, components)
+      }
+
+      if (globalParameters) {
+        const example = _.get(globalParameters[paramObj.name || ""], "schema.example");
+        if (example) {
+          paramComment += `\n@example ${example}`;
+        }
+      }
+
       if (paramComment) output += comment(paramComment);
 
       const required = paramObj.required ? `` : `?`;

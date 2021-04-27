@@ -187,15 +187,36 @@ function transResNs(tagNsMap: TagOpMap, schema: OpenAPI3) {
   return reqNsCode;
 }
 
-function genClassHeadCode() {
-  return `
-  import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
-\nexport class ApiClient {
+function genClassHeadCode(schema: OpenAPI3) {
+  let output = "";
+  const commentLines = [];
+  if (schema.info) {
+    const info = schema.info;
+    if (info.title) {
+      commentLines.push(`@name ${info.title}`);
+    }
+    if (info.version) {
+      commentLines.push(`@version ${info.version}`);
+    }
+    if (info.description) {
+      commentLines.push(`@description ${info.description}`);
+    }
+  }
+  const importCode = `import axios, { AxiosInstance, AxiosRequestConfig } from "axios";\n\n`;
+
+  const commentSrc = commentLines.join("\n");
+  const commentCode = comment(commentSrc);
+
+  output += importCode;
+  output += `${commentCode}export class ApiClient {`;
+
+  output += `
   private request: AxiosInstance;
   constructor(instance: AxiosInstance) {
     this.request = instance
   }
 `;
+  return output;
 }
 
 function genClassTailCode() {
@@ -345,7 +366,7 @@ function genApiClassCode(schema: OpenAPI3, tagNsMap: TagOpMap) {
 
   let output = "";
   if (code) {
-    output += genClassHeadCode();
+    output += genClassHeadCode(schema);
     output += code;
     output += genClassTailCode();
     const firstServer = getFirstServerEnum(schema);
@@ -355,4 +376,8 @@ function genApiClassCode(schema: OpenAPI3, tagNsMap: TagOpMap) {
     }
   }
   return output;
+}
+
+function commentSrc(commentSrc: any) {
+  throw new Error("Function not implemented.");
 }

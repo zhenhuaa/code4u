@@ -18,8 +18,15 @@ export interface OpenAPI2 {
   responses?: Record<string, ResponseObject>; // required
 }
 
+export interface OpenApiInfo {
+  title: string
+  version: string
+  description: string
+}
+
 export interface OpenAPI3 {
   openapi: string; // required
+  info: OpenApiInfo;
   paths?: Record<string, PathItemObject>; // required
   tags?: Tag[];
   servers?: ServerInfo[];

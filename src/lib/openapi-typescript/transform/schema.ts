@@ -89,7 +89,10 @@ export function transformSchemaObj(node: any, options: Options): string {
     case "enum": {
       const items: Array<string | number | boolean> = [];
       (node.enum as unknown[]).forEach((item) => {
-        if (typeof item === "string") items.push(`'${item.replace(/'/g, "\\'")}'`);
+        if (typeof item === "string")  {
+          const safeItem = item.replace(/\n/g, '');
+          items.push(`'${safeItem.replace(/'/g, "\\'")}'`);
+        }
         else if (typeof item === "number" || typeof item === "boolean") items.push(item);
         else if (item === null && !node.nullable) items.push("null");
       });
