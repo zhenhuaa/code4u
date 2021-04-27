@@ -143,9 +143,16 @@ function wrapToNameSpaceLines(nsLines: string[], ns: string) {
   return lines;
 }
 
+function isAnyOfOrOneOfOrAllOf(node: object) {
+  const isAnyOfOrOneOfOrAllOf = "anyOf" in node || "oneOf" in node || "allOf" in node;
+  return isAnyOfOrOneOfOrAllOf
+}
+
+
+
 function isHas200JsonResponse(op: OperationObject, schema: OpenAPI3): boolean {
-  if (!op.responses) return false;
-  let response = op.responses["200"];
+  let response = _.get(op, 'responses.200');
+  if (!response) return false;
   if ("$ref" in response) {
     response = getRefObject(response.$ref, schema.components);
   }
@@ -157,7 +164,8 @@ function isHas200JsonResponse(op: OperationObject, schema: OpenAPI3): boolean {
     const resSchema: SchemaObject = getRefObject(schemaObj.$ref, schema.components);
     schemaObj = resSchema;
   }
-  return !!schemaObj.properties;
+  const hasRes = isAnyOfOrOneOfOrAllOf(schemaObj) || (!!schemaObj.type) 
+  return hasRes
 }
 
 function transResNs(tagNsMap: TagOpMap, schema: OpenAPI3) {
@@ -201,6 +209,7 @@ function genFunCode(tag: string, url: string, m: HttpMethod, operation: Operatio
 
   function getUrlLine(pathParams: PathItemObject[]) {
     if (pathParams.length > 0) {
+      /* eslint-disable no-template-curly-in-string*/
       url = url.replace(/{([a-zA-Z_]+)}/g, "${params.$1}");
       return `url: \`${url}\`,`;
     } else {

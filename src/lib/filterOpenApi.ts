@@ -79,6 +79,7 @@ function filterPaths(
         }
       }
     }
+    return false;
   });
   return keys.reduce((ret, k) => {
     ret[k] = r[k];
