@@ -74,18 +74,13 @@ type TagOpMap = Record<string, OperationObject[]>;
 
 type AllTypeParams = [PathItemObject[], PathItemObject[], RequestBody];
 
-const operationParamsCache: Map<string, AllTypeParams> = new Map();
 
 function getAllTypeReqParams(op: OperationObject, schema: OpenAPI3): AllTypeParams {
-  const opId = op.operationId as string;
-  if (!operationParamsCache.has(opId)) {
-    const qsList = getQsList(op.parameters, schema);
-    const pathList = getPathParamsList(op.parameters, schema);
-    const reqBody = getReqBody(op.requestBody, schema);
-    const result = [pathList, qsList, reqBody] as AllTypeParams;
-    operationParamsCache.set(opId, result);
-  }
-  return operationParamsCache.get(opId) as AllTypeParams;
+  const qsList = getQsList(op.parameters, schema);
+  const pathList = getPathParamsList(op.parameters, schema);
+  const reqBody = getReqBody(op.requestBody, schema);
+  const result = [pathList, qsList, reqBody] as AllTypeParams;
+  return result
 }
 
 function getReqUnionTypes(op: OperationObject, schema: OpenAPI3): string[] {
@@ -106,8 +101,8 @@ function getReqUnionTypes(op: OperationObject, schema: OpenAPI3): string[] {
   }
 
   if (reqBody) {
-    const hasJsonBody = isContainJsonSchema(reqBody, schema)
-    if(hasJsonBody) {
+    const hasJsonBody = isContainJsonSchema(reqBody, schema);
+    if (hasJsonBody) {
       const bodyType = `operations["${fn}"]["requestBody"]["content"]["application/json"]`;
       unionTypes.push(bodyType);
     }
@@ -148,32 +143,35 @@ function wrapToNameSpaceLines(nsLines: string[], ns: string) {
 
 function isAnyOfOrOneOfOrAllOf(node: object) {
   const isAnyOfOrOneOfOrAllOf = "anyOf" in node || "oneOf" in node || "allOf" in node;
-  return isAnyOfOrOneOfOrAllOf
+  return isAnyOfOrOneOfOrAllOf;
 }
 
-
 function isContainJsonSchema(obj: SchemaObject, schema: OpenAPI3) {
+  if (!obj) return false;
   const deepGetKey = "content.application/json.schema";
   const refObj: SchemaObject | ReferenceObject = _.get(obj, deepGetKey);
 
   let schemaObj = refObj || {};
   if ("$ref" in schemaObj) {
-    const resSchema: SchemaObject = getRefObject(schemaObj.$ref, schema.components);
+    const resSchema: SchemaObject = getRefObject(schemaObj.$ref, schema.components) || {};
     schemaObj = resSchema;
   }
-  const hasRes = isAnyOfOrOneOfOrAllOf(schemaObj) || (!!schemaObj.type) 
-  return hasRes
+  const hasRes =
+    isAnyOfOrOneOfOrAllOf(schemaObj || {}) ||
+    !!schemaObj.type ||
+    !!schemaObj.properties ||
+    !!schemaObj.additionalProperties;
+  return hasRes;
 }
 
-
 function isHas200JsonResponse(op: OperationObject, schema: OpenAPI3): boolean {
-  let response = _.get(op, 'responses.200');
+  let response = _.get(op, "responses.200");
   if (!response) return false;
   if ("$ref" in response) {
     response = getRefObject(response.$ref, schema.components);
   }
-  const hasRes = isContainJsonSchema(response, schema)
-  return hasRes
+  const hasRes = isContainJsonSchema(response, schema);
+  return hasRes;
 }
 
 function transResNs(tagNsMap: TagOpMap, schema: OpenAPI3) {
@@ -235,6 +233,7 @@ function genFunCode(tag: string, url: string, m: HttpMethod, operation: Operatio
 
   function getParamDataLine(qsList: PathItemObject[], body: RequestBody, fn: string) {
     let line = "";
+    console.log(qsList, body, "fn");
     if (!_.isEmpty(qsList)) {
       line += "params: params,\n";
     }

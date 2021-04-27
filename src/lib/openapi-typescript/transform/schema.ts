@@ -23,6 +23,13 @@ export function transformSchemaObjMap(obj: Record<string, any>, options: Transfo
 
   Object.entries(obj).forEach(([key, value]) => {
     // 1. JSDoc comment (goes above property)
+    if (value.example) {
+      if(value.description) {
+        value.description += value.description + `\n@example ${value.example}`
+      } else {
+        value.description = `@example ${value.example}`
+      }
+    }
     if (value.description) output += comment(value.description);
 
     // 2. name (with “?” if optional property)
