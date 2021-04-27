@@ -34,7 +34,7 @@ export function getTypeParamsList(
       const refP = getRefObject<ParameterObject>(p.$ref, schema.components);
       item = refP;
     }
-    if (item.in === type) {
+    if (item && item.in === type) {
       list.push(item);
     }
   }
@@ -259,7 +259,11 @@ function genClassMethodCode(tag: string, url: string, m: HttpMethod, operation: 
       line += "params: params,\n";
     }
     if (body) {
-      line += "data: params\n";
+      //TODO CURRENT ONLY SUPPORT JSON
+      const hasJsonBody = isContainJsonSchema(reqBody, schema);
+      if (hasJsonBody) {
+        line += "data: params\n";
+      }
     }
     return line;
   }

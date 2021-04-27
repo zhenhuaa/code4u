@@ -93,6 +93,11 @@ export function transformRef(ref: string, root = ""): string {
   const isExternalRef = !ref.startsWith("#"); // if # isn’t first character, we can assume this is a remote schema
   if (isExternalRef) return "any";
 
+  // dirty fix for some typo ref in doc
+  if(ref && ref.startsWith("#components")) {
+    ref = ref.replace("#components", "#/components")
+  }
+
   const parts = ref.replace(/^#\//, root).split("/");
   return `${parts[0]}["${parts.slice(1).join('"]["')}"]`;
 }
